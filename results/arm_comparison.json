@@ -1,0 +1,18 @@
+{
+  "rls": {
+    "attacks_total": 30,
+    "attacks_bypassed": 0,
+    "controls_passed": 5
+  },
+  "appfilter": {
+    "attacks_total": 30,
+    "attacks_bypassed": 4,
+    "controls_passed": 5
+  },
+  "divergences": [
+    "  aggregate_sum_masked_column            rls=held  appfilter=BYPASS",
+    "  aggregate_min_max_probe                rls=held  appfilter=BYPASS",
+    "  order_by_masked_column                 rls=held  appfilter=BYPASS",
+    "  masked_column_in_predicate             rls=held  appfilter=BYPASS"
+  ]
+}

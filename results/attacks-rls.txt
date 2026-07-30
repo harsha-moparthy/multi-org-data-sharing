@@ -1,0 +1,50 @@
+=== ARM: rls ===
+
+attacks: 30  bypasses: 0
+positive controls: 5/5 passed
+audit: 45 events, 20 denials, 20 unattributed; chain INTACT over 45 rows
+
+-- by family --
+  delegation_chain     7/7 held
+  expired_or_revoked   5/5 held
+  forged_identity      8/8 held
+  side_channel         10/10 held
+
+-- attacks --
+  [held  ] forge_subject_keep_signature           held (decisions=['deny'], rows=[])
+  [held  ] forge_widen_grant_reference            held (decisions=['deny'], rows=[])
+  [held  ] forge_extend_expiry                    held (decisions=['deny'], rows=[])
+  [held  ] forge_wrong_signing_key                held (decisions=['deny'], rows=[])
+  [held  ] forge_unsigned_credential              held (decisions=['deny'], rows=[])
+  [held  ] forge_empty_credential                 held (decisions=['deny'], rows=[])
+  [held  ] forge_agent_holds_grant_directly       held (decisions=['deny'], rows=[])
+  [held  ] forge_foreign_org_agent                held (decisions=['deny'], rows=[])
+  [held  ] expired_grant                          held (decisions=['deny'], rows=[])
+  [held  ] unapproved_grant                       held (decisions=['deny'], rows=[])
+  [held  ] revoked_grant_valid_credential         held (decisions=['deny'], rows=[])
+  [held  ] revoked_delegation_valid_credential    held (decisions=['deny'], rows=[])
+  [held  ] disabled_principal                     held (decisions=['deny'], rows=[])
+  [held  ] delegation_widen_at_creation           held (decisions=['deny'], rows=[])
+  [held  ] subdelegation_widen_beyond_parent      held (decisions=['deny'], rows=[])
+  [held  ] orphan_chain_mid_revocation            held (decisions=['deny'], rows=[])
+  [held  ] expired_parent_live_child              held (decisions=['deny'], rows=[])
+  [held  ] delegation_credential_swap             held (decisions=['deny'], rows=[])
+  [held  ] unauthorized_agent_self_delegation     held (decisions=['deny'], rows=[])
+  [held  ] delegation_outlives_grant              held (decisions=['deny'], rows=[])
+  [held  ] predicate_probe_hidden_row             held (decisions=['allow'], rows=[])
+  [held  ] aggregate_count_all                    held (decisions=['allow'], rows=[5])
+  [held  ] aggregate_sum_masked_column            held (decisions=['allow'], rows=[0])
+  [held  ] aggregate_min_max_probe                held (decisions=['allow'], rows=[0])
+  [held  ] self_join_across_boundary              raised InsufficientPrivilege: permission denied for table shipment
+  [held  ] exists_subquery_oracle                 held (decisions=['allow'], rows=[])
+  [held  ] order_by_masked_column                 held (decisions=['allow', 'allow'], rows=[1001, 1002, 1003, 1005, 1006])
+  [held  ] cross_partner_row_probe                held (decisions=['allow'], rows=[])
+  [held  ] other_provider_data                    held (decisions=['allow'], rows=[])
+  [held  ] masked_column_in_predicate             held (decisions=['allow', 'allow', 'allow', 'allow', 'allow'], rows=[])
+
+-- positive controls (must all pass, or the portal is useless) --
+  [pass] human_grantee_full_scope         exact match (8 rows)
+  [pass] delegated_agent_narrowed         exact match (5 rows)
+  [pass] subdelegated_agent_depth2        exact match (5 rows)
+  [pass] other_partner_wider_grant        exact match (9 rows)
+  [pass] base_columns_only                exact match (8 rows)

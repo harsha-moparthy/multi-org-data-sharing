@@ -1,0 +1,138 @@
+name: adversarial-gate
+
+# The whole system runs in CI against a real Postgres 16 with no secrets and no
+# network beyond the service container. Three things gate a merge:
+#
+#   1. the RLS arm must hold every attack AND pass every positive control
+#      (zero bypasses on its own is passable by a portal that serves nothing)
+#   2. the mutation check must catch every deliberately-broken control
+#      (a suite that cannot fail is not evidence)
+#   3. the revocation bound must hold per trial, not on average
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: shareadmin
+          POSTGRES_DB: sharing
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5435:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5435"
+      PGDATABASE: sharing
+      PGUSER: shareadmin
+      # Not a real secret: the whole point is that CI needs no credentials. The
+      # signing key only has to be consistent within a run.
+      PORTAL_SIGNING_KEY: ci-signing-key-not-a-real-secret
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --extra dev
+
+      - name: Lint
+        run: uv run ruff check src attacks tests
+
+      - name: Schema and seeded scenario
+        run: uv run portal init
+
+      - name: Tests
+        run: uv run pytest
+
+      - name: Adversarial suite — both arms
+        run: uv run python -m attacks.run_suite --both
+
+      - name: Gate — RLS arm must have zero bypasses and pass every control
+        run: |
+          uv run python - <<'PY'
+          import json, pathlib, sys
+          r = json.loads(pathlib.Path("results/attacks-rls.json").read_text())
+          print(f"rls: {r['attacks_bypassed']} bypasses of {r['attacks_total']}, "
+                f"controls {r['controls_passed']}/{r['controls_total']}")
+          fail = []
+          if r["attacks_bypassed"] != 0:
+              fail.append(f"{r['attacks_bypassed']} attacks bypassed the RLS arm")
+          if r["controls_passed"] != r["controls_total"]:
+              fail.append("a legitimate request was refused or served the wrong rows")
+          if r["audit_chain_first_bad"] is not None:
+              fail.append(f"audit chain broken at seq {r['audit_chain_first_bad']}")
+          # Every family must actually be exercised.
+          for fam, s in r["by_family"].items():
+              if s["total"] < 5:
+                  fail.append(f"family {fam} has only {s['total']} attacks")
+          if fail:
+              sys.exit("GATE FAILED: " + "; ".join(fail))
+          print("gate passed")
+          PY
+
+      - name: Gate — the control arm must still show the divergence
+        run: |
+          uv run python - <<'PY'
+          import json, pathlib, sys
+          a = json.loads(pathlib.Path("results/attacks-appfilter.json").read_text())
+          leaks = {o["name"] for o in a["outcomes"] if o["bypassed"]}
+          expected = {
+              "masked_column_in_predicate", "order_by_masked_column",
+              "aggregate_sum_masked_column", "aggregate_min_max_probe",
+          }
+          print("appfilter bypasses:", sorted(leaks))
+          if leaks != expected:
+              sys.exit(
+                  "the documented arm divergence changed: expected "
+                  f"{sorted(expected)}, got {sorted(leaks)}. "
+                  "results/side_channel_analysis.md is now stale."
+              )
+          print("divergence unchanged")
+          PY
+
+      - name: Revocation bounds
+        run: uv run python -m attacks.bench_revocation --trials 5
+
+      - name: Audit reconstruction and tamper detection
+        run: uv run python -m attacks.audit_reconstruction
+
+      - name: Side-channel analysis regenerates and matches
+        run: |
+          cp results/side_channel_analysis.md /tmp/committed.md
+          uv run python -m attacks.side_channel_analysis > /dev/null
+          diff -u /tmp/committed.md results/side_channel_analysis.md || {
+            echo "the committed side-channel analysis does not match a fresh run"
+            exit 1
+          }
+
+      - name: Known limitation — metadata cardinality leak is still just that
+        run: uv run python -m attacks.metadata_cardinality
+
+      - name: Mutation check — the suite must be able to fail
+        run: |
+          PY=$(which python) uv run bash scripts/mutation_check.sh
+          uv run python - <<'PY'
+          import pathlib, sys
+          doc = pathlib.Path("results/mutation_check.md").read_text()
+          if "**NO — GAP**" in doc or "**ERROR**" in doc:
+              print(doc)
+              sys.exit("a mutation was not caught, or a mutation failed to apply")
+          print("every mutant caught")
+          PY

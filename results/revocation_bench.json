@@ -1,0 +1,53 @@
+{
+  "trials_per_mode": 5,
+  "request_interval_s": 0.02,
+  "token_ttl_s": 0.5,
+  "cache_ttl_s": 5.0,
+  "modes": [
+    {
+      "mode": "db_checked",
+      "declared_bound_s": 0.04,
+      "trials": 5,
+      "halt_latency_mean_s": 0.0136,
+      "halt_latency_max_s": 0.014,
+      "rows_after_revoke_max": 0,
+      "rows_after_revoke_mean": 0,
+      "within_bound": "5/5",
+      "all_within_bound": true
+    },
+    {
+      "mode": "cache_5s",
+      "declared_bound_s": 5.04,
+      "trials": 5,
+      "halt_latency_mean_s": 4.929,
+      "halt_latency_max_s": 4.9401,
+      "rows_after_revoke_max": 950,
+      "rows_after_revoke_mean": 936,
+      "within_bound": "5/5",
+      "all_within_bound": true
+    },
+    {
+      "mode": "token_only",
+      "declared_bound_s": 0.54,
+      "trials": 5,
+      "halt_latency_mean_s": 0.4031,
+      "halt_latency_max_s": 0.42,
+      "rows_after_revoke_max": 50,
+      "rows_after_revoke_mean": 48,
+      "within_bound": "5/5",
+      "all_within_bound": true
+    }
+  ],
+  "inflight": {
+    "trials": 5,
+    "rows_served_by_inflight_request": [
+      5,
+      5,
+      5,
+      5,
+      5
+    ],
+    "max_rows_leaked_inflight": 5,
+    "next_request_always_denied": true
+  }
+}

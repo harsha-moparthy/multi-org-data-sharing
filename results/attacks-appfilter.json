@@ -1,0 +1,519 @@
+{
+  "arm": "appfilter",
+  "attacks_total": 30,
+  "attacks_bypassed": 4,
+  "by_family": {
+    "forged_identity": {
+      "total": 8,
+      "bypassed": 0
+    },
+    "expired_or_revoked": {
+      "total": 5,
+      "bypassed": 0
+    },
+    "delegation_chain": {
+      "total": 7,
+      "bypassed": 0
+    },
+    "side_channel": {
+      "total": 10,
+      "bypassed": 4
+    }
+  },
+  "controls_total": 5,
+  "controls_passed": 5,
+  "audit_events": 46,
+  "audit_denies": 20,
+  "audit_unattributed": 20,
+  "audit_chain_checked": 46,
+  "audit_chain_first_bad": null,
+  "outcomes": [
+    {
+      "name": "forge_subject_keep_signature",
+      "family": "forged_identity",
+      "description": "Take the agent's own valid credential and rewrite `sub` to the human analyst (who has a wider grant), keeping the original signature.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        9
+      ]
+    },
+    {
+      "name": "forge_widen_grant_reference",
+      "family": "forged_identity",
+      "description": "Rewrite `grant_id` to the never-approved grant g-unapproved, which would allow APAC + restricted + all columns.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        10
+      ]
+    },
+    {
+      "name": "forge_extend_expiry",
+      "family": "forged_identity",
+      "description": "Rewrite `exp` far into the future on an expired credential.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        11
+      ]
+    },
+    {
+      "name": "forge_wrong_signing_key",
+      "family": "forged_identity",
+      "description": "Mint a perfectly well-formed credential with an attacker-chosen key \u2014 the case where the attacker understands the format.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        12
+      ]
+    },
+    {
+      "name": "forge_unsigned_credential",
+      "family": "forged_identity",
+      "description": "Present bare claims with no signature at all.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        13
+      ]
+    },
+    {
+      "name": "forge_empty_credential",
+      "family": "forged_identity",
+      "description": "Present nothing. Must fail closed, not fail open.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        14
+      ]
+    },
+    {
+      "name": "forge_agent_holds_grant_directly",
+      "family": "forged_identity",
+      "description": "An agent presents a credential with no delegation, claiming the grant directly \u2014 the 'non-human identity with its own standing authority' anti-pattern.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        15
+      ]
+    },
+    {
+      "name": "forge_foreign_org_agent",
+      "family": "forged_identity",
+      "description": "Contoso's agent presents meridian's grant id \u2014 cross-partner credential confusion.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        16
+      ]
+    },
+    {
+      "name": "expired_grant",
+      "family": "expired_or_revoked",
+      "description": "g-short expires 2 seconds after seeding; wait it out and read. The credential itself is freshly minted and validly signed, so only the *grant's* expiry can stop this.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        17
+      ]
+    },
+    {
+      "name": "unapproved_grant",
+      "family": "expired_or_revoked",
+      "description": "Read under a grant that was requested but never approved by the provider. Approval is the human control; skipping it must not work.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        18
+      ]
+    },
+    {
+      "name": "revoked_grant_valid_credential",
+      "family": "expired_or_revoked",
+      "description": "The killer case for token-only systems: revoke the grant, then present a credential minted BEFORE the revocation that is still within its TTL. Nothing about the token is wrong.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        20
+      ]
+    },
+    {
+      "name": "revoked_delegation_valid_credential",
+      "family": "expired_or_revoked",
+      "description": "Same, but revoking the delegation rather than the grant.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        22
+      ]
+    },
+    {
+      "name": "disabled_principal",
+      "family": "expired_or_revoked",
+      "description": "The human analyst leaves the company (principal disabled). Their agent's delegation is untouched and its credential is valid \u2014 the classic orphaned-agent case.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        23
+      ]
+    },
+    {
+      "name": "delegation_widen_at_creation",
+      "family": "delegation_chain",
+      "description": "Try to CREATE a delegation wider than the grant (APAC, cost columns). Must be refused by the database, not merely ignored at read time.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        24
+      ]
+    },
+    {
+      "name": "subdelegation_widen_beyond_parent",
+      "family": "delegation_chain",
+      "description": "The agent sub-delegates to a second agent with MORE scope than it holds itself \u2014 privilege escalation down the chain.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        25
+      ]
+    },
+    {
+      "name": "orphan_chain_mid_revocation",
+      "family": "delegation_chain",
+      "description": "Revoke the MIDDLE of a 2-hop chain and use the deepest credential. The leaf delegation row is untouched and unexpired, so only walking the chain to its root can catch this.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        27
+      ]
+    },
+    {
+      "name": "expired_parent_live_child",
+      "family": "delegation_chain",
+      "description": "Expire the parent delegation while the child's own expiry is still in the future.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        28
+      ]
+    },
+    {
+      "name": "delegation_credential_swap",
+      "family": "delegation_chain",
+      "description": "An agent presents someone else's delegation id \u2014 one it is not the delegatee of.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        29
+      ]
+    },
+    {
+      "name": "unauthorized_agent_self_delegation",
+      "family": "delegation_chain",
+      "description": "An agent belonging to a different analyst creates its own delegation under a grant it does not hold.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        30
+      ]
+    },
+    {
+      "name": "delegation_outlives_grant",
+      "family": "delegation_chain",
+      "description": "Create a delegation whose expiry is after the grant's, so the agent would outlive the share it depends on.",
+      "bypassed": false,
+      "detail": "held (decisions=['deny'], rows=[])",
+      "decision": "deny",
+      "leaked_rows": [],
+      "audit_seqs": [
+        31
+      ]
+    },
+    {
+      "name": "predicate_probe_hidden_row",
+      "family": "side_channel",
+      "description": "Ask for a specific out-of-scope row by id. The answer must be 'no rows', indistinguishable from 'does not exist'.",
+      "bypassed": false,
+      "detail": "held (decisions=['allow'], rows=[])",
+      "decision": "allow",
+      "leaked_rows": [],
+      "audit_seqs": [
+        32
+      ]
+    },
+    {
+      "name": "aggregate_count_all",
+      "family": "side_channel",
+      "description": "COUNT(*) through the shared view. Must count only the 5 rows this agent may see, not the base table's 24.",
+      "bypassed": false,
+      "detail": "held (decisions=['allow'], rows=[5])",
+      "decision": "allow",
+      "leaked_rows": [],
+      "audit_seqs": [
+        33
+      ]
+    },
+    {
+      "name": "aggregate_sum_masked_column",
+      "family": "side_channel",
+      "description": "SUM a column the grant masks. If masking happened after aggregation, the total would leak the hidden values.",
+      "bypassed": true,
+      "detail": "sum(masked column) must be 0, not the true total (~27) \u2014 got [28]",
+      "decision": "allow",
+      "leaked_rows": [],
+      "audit_seqs": [
+        34
+      ]
+    },
+    {
+      "name": "aggregate_min_max_probe",
+      "family": "side_channel",
+      "description": "MAX over a masked column to recover an individual value without selecting it. True max margin_pct over visible rows is 22.50.",
+      "bypassed": true,
+      "detail": "max(masked column) must be 0, not the true max (22) \u2014 got [23]",
+      "decision": "allow",
+      "leaked_rows": [],
+      "audit_seqs": [
+        35
+      ]
+    },
+    {
+      "name": "self_join_across_boundary",
+      "family": "side_channel",
+      "description": "Join the shared view to the BASE table, hoping the base table is reachable and unfiltered. Under RLS the app role has no privilege on it at all.",
+      "bypassed": false,
+      "detail": "held (decisions=['allow'], rows=[])",
+      "decision": "allow",
+      "leaked_rows": [],
+      "audit_seqs": [
+        36
+      ]
+    },
+    {
+      "name": "exists_subquery_oracle",
+      "family": "side_channel",
+      "description": "Use a hidden row inside an EXISTS predicate as a boolean oracle: the row itself is never selected, only its existence leaks.",
+      "bypassed": false,
+      "detail": "held (decisions=['allow'], rows=[])",
+      "decision": "allow",
+      "leaked_rows": [],
+      "audit_seqs": [
+        37
+      ]
+    },
+    {
+      "name": "order_by_masked_column",
+      "family": "side_channel",
+      "description": "ORDER BY a masked column. Values are NULL in the projection, but if the sort sees the real column the returned ORDER still encodes them. Bypass condition: DESC and ASC produce different orders, i.e. the sort key was visible to the engine.",
+      "bypassed": true,
+      "detail": "ORDER BY a masked column changed the row order (desc=[1003, 1002, 1001, 1006, 1005] vs asc=[1005, 1006, 1001, 1002, 1003]), disclosing the hidden ranking",
+      "decision": "allow,allow",
+      "leaked_rows": [],
+      "audit_seqs": [
+        38,
+        39
+      ]
+    },
+    {
+      "name": "cross_partner_row_probe",
+      "family": "side_channel",
+      "description": "The human grantee probes for another partner's rows by id \u2014 in scope by region and classification, but not theirs.",
+      "bypassed": false,
+      "detail": "held (decisions=['allow'], rows=[])",
+      "decision": "allow",
+      "leaked_rows": [],
+      "audit_seqs": [
+        40
+      ]
+    },
+    {
+      "name": "other_provider_data",
+      "family": "side_channel",
+      "description": "Reach rows owned by a third provider org (contoso) under a northwind grant.",
+      "bypassed": false,
+      "detail": "held (decisions=['allow'], rows=[])",
+      "decision": "allow",
+      "leaked_rows": [],
+      "audit_seqs": [
+        41
+      ]
+    },
+    {
+      "name": "masked_column_in_predicate",
+      "family": "side_channel",
+      "description": "Filter on a masked column's value. If the predicate sees the real value while the projection masks it, the filter result leaks the value bit by bit.",
+      "bypassed": true,
+      "detail": "a predicate over a masked column partitioned the results ([(), (1001, 1002, 1003, 1005, 1006), (1001, 1002, 1003, 1006), (1002, 1003), (1003,)]), so each hidden value is binary-searchable",
+      "decision": "allow,allow,allow,allow,allow",
+      "leaked_rows": [],
+      "audit_seqs": [
+        42,
+        43,
+        44,
+        45,
+        46
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "name": "human_grantee_full_scope",
+      "description": "The analyst who holds the grant reads everything the grant allows: 8 rows across EU+UK at or below 'internal', cost visible, contact masked.",
+      "passed": true,
+      "detail": "exact match (8 rows)",
+      "got_rows": [
+        1001,
+        1002,
+        1003,
+        1005,
+        1006,
+        1010,
+        1011,
+        1013
+      ],
+      "want_rows": [
+        1001,
+        1002,
+        1003,
+        1005,
+        1006,
+        1010,
+        1011,
+        1013
+      ]
+    },
+    {
+      "name": "delegated_agent_narrowed",
+      "description": "The analyst's agent reads under a delegation narrowed to EU with no cost columns: strictly less than its delegator, and that is correct.",
+      "passed": true,
+      "detail": "exact match (5 rows)",
+      "got_rows": [
+        1001,
+        1002,
+        1003,
+        1005,
+        1006
+      ],
+      "want_rows": [
+        1001,
+        1002,
+        1003,
+        1005,
+        1006
+      ]
+    },
+    {
+      "name": "subdelegated_agent_depth2",
+      "description": "A depth-2 sub-agent inherits the intersection of both hops.",
+      "passed": true,
+      "detail": "exact match (5 rows)",
+      "got_rows": [
+        1001,
+        1002,
+        1003,
+        1005,
+        1006
+      ],
+      "want_rows": [
+        1001,
+        1002,
+        1003,
+        1005,
+        1006
+      ]
+    },
+    {
+      "name": "other_partner_wider_grant",
+      "description": "The OTHER partner's analyst has a wider grant (all regions, restricted, all columns) and must receive all of it \u2014 proving the portal is not simply strict with everyone.",
+      "passed": true,
+      "detail": "exact match (9 rows)",
+      "got_rows": [
+        1005,
+        1006,
+        1007,
+        1008,
+        1009,
+        1013,
+        1014,
+        1018,
+        1019
+      ],
+      "want_rows": [
+        1005,
+        1006,
+        1007,
+        1008,
+        1009,
+        1013,
+        1014,
+        1018,
+        1019
+      ]
+    },
+    {
+      "name": "base_columns_only",
+      "description": "A request for a subset of columns returns exactly that subset.",
+      "passed": true,
+      "detail": "exact match (8 rows)",
+      "got_rows": [
+        1001,
+        1002,
+        1003,
+        1005,
+        1006,
+        1010,
+        1011,
+        1013
+      ],
+      "want_rows": [
+        1001,
+        1002,
+        1003,
+        1005,
+        1006,
+        1010,
+        1011,
+        1013
+      ]
+    }
+  ]
+}

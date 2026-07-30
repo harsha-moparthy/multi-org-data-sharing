@@ -1,0 +1,9 @@
+{
+  "provider_rows": 4,
+  "consumer_rows": 3,
+  "contoso_visible_reads": 1,
+  "forged_audit_rows": 0,
+  "tamper_detected_at": 5,
+  "rows_outside_scope": 0,
+  "reads_without_approval": 0
+}
