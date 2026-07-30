@@ -19,6 +19,25 @@ cp "$SCHEMA" "$BACKUP"
 restore() { cp "$BACKUP" "$SCHEMA"; }
 trap restore EXIT
 
+# Preflight: prove the interpreter can actually run the suite BEFORE mutating.
+# Without this, a wrong $PY makes every mutant look like a coverage gap — which
+# is the most misleading possible failure, since it reports the security suite
+# as toothless when nothing is wrong with it.
+if ! $PY -c 'import pytest' 2>/dev/null; then
+  echo "ERROR: '$PY' cannot import pytest, so no mutant would be evaluated." >&2
+  echo "Pass an interpreter that has the dev extras installed, e.g.:" >&2
+  echo "  PY=.venv/bin/python scripts/mutation_check.sh" >&2
+  echo "  PY=\$(uv run python -c 'import sys; print(sys.executable)') scripts/mutation_check.sh" >&2
+  exit 1
+fi
+if ! $PY -m pytest -q >/dev/null 2>&1; then
+  echo "ERROR: the suite is not green before any mutation is applied." >&2
+  echo "Fix that first — mutation results are meaningless from a red baseline." >&2
+  $PY -m pytest -q 2>&1 | tail -n 15 >&2
+  exit 1
+fi
+echo "preflight: '$PY' runs the suite and it is green"
+
 mkdir -p results
 {
   echo "# Mutation check: can the adversarial suite fail?"
@@ -53,11 +72,31 @@ PYEOF
     return 1
   fi
 
-  local failures
-  failures=$($PY -m pytest -q 2>&1 | grep -E '^FAILED' | head -3 \
+  # Capture pytest's OUTPUT and its EXIT CODE separately.
+  #
+  # Grepping for FAILED alone cannot distinguish "the suite ran and passed"
+  # (exit 0 — a real coverage gap) from "the suite never ran" (exit 4/5, e.g.
+  # pytest not importable). Both produce no FAILED lines. That ambiguity turned
+  # a broken interpreter path in CI into twelve reported coverage gaps.
+  local out rc failures
+  out=$($PY -m pytest -q 2>&1); rc=$?
+  # pytest: 0 = all passed, 1 = tests failed. Anything else (2 collection error,
+  # 3 internal error, 4 usage error, 5 no tests) means the suite did not run.
+  if [ "$rc" -ne 0 ] && [ "$rc" -ne 1 ]; then
+    echo "| $n | $desc | **ERROR** | \`pytest did not run (exit $rc)\` |" >> "$OUT"
+    echo "  [$n] $desc -> ERROR: pytest did not run (exit $rc)"
+    echo "$out" | tail -n 5 >&2
+    return 1
+  fi
+
+  failures=$(printf '%s\n' "$out" | grep -E '^FAILED' | head -3 \
              | sed -E 's/FAILED tests\///; s/ - .*//' | paste -sd '; ' -)
   local caught="**yes**"
-  [ -z "$failures" ] && caught="**NO — GAP**"
+  if [ "$rc" -eq 0 ]; then
+    # Exit 0 with the mutation applied: the suite genuinely did not notice.
+    caught="**NO — GAP**"
+    failures=""
+  fi
   echo "| $n | $desc | $caught | \`${failures:-none}\` |" >> "$OUT"
   echo "  [$n] $desc -> ${failures:-NOT CAUGHT}"
 }
@@ -103,10 +142,12 @@ mutate 12 "delegation trigger: narrowing enforcement" \
 restore
 echo
 echo "verifying the suite is green again after restore..."
-if $PY -m pytest -q >/dev/null 2>&1; then
-  echo "restored: suite green" | tee -a /dev/null
+if final_out=$($PY -m pytest -q 2>&1); then
+  n_passed=$(printf '%s\n' "$final_out" | grep -oE '[0-9]+ passed' | tail -1)
+  echo "restored: suite green (${n_passed:-all passed})"
   echo >> "$OUT"
-  echo "After restoring the original schema the suite is green again (85 passed)." >> "$OUT"
+  echo "After restoring the original schema the suite is green again" \
+       "(${n_passed:-all passed})." >> "$OUT"
 else
   echo "WARNING: suite is not green after restore" >&2
   exit 1

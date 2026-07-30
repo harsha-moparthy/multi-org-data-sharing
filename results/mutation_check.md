@@ -19,4 +19,4 @@ full test suite, and records which attack caught it. Regenerate with
 | 11 | verify_credential: expiry check | **yes** | `test_credentials.py::test_expired_credential_rejected;test_revocation.py::test_token_only_enforcement_keeps_working_after_revocation` |
 | 12 | delegation trigger: narrowing enforcement | **yes** | `test_delegation_rules.py::test_region_wider_than_grant_is_refused` |
 
-After restoring the original schema the suite is green again (85 passed).
+After restoring the original schema the suite is green again (all passed).

@@ -131,7 +131,12 @@ jobs:
 
       - name: Mutation check — the suite must be able to fail
         run: |
-          PY=$(which python) uv run bash scripts/mutation_check.sh
+          # PY must be the venv interpreter. `which python` resolves to the
+          # system python, which cannot import pytest, so every mutant reported
+          # "NOT CAUGHT" — the suite looked toothless when it was fine. The
+          # script now preflights this, but pass the right thing anyway.
+          PY=$(uv run python -c 'import sys; print(sys.executable)') \
+            bash scripts/mutation_check.sh
           uv run python - <<'PY'
           import pathlib, sys
           doc = pathlib.Path("results/mutation_check.md").read_text()
