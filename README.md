@@ -34,7 +34,7 @@ real Postgres 16, reproducible with the commands in [Reproduce](#reproduce).
 
 | Evidence | Result |
 |---|---|
-| Test suite (real Postgres, real RLS policies) | **85 passed** |
+| Test suite (real Postgres, real RLS policies) | **88 passed** |
 | Adversarial suite, RLS arm — 4 families, 30 attacks | **0 bypasses** |
 | Positive controls (exactly the approved rows/columns) | **5/5 exact match** vs. an independent oracle |
 | Control arm (competent application-level filtering) | **4 bypasses** — all masked-column channels |
@@ -185,7 +185,7 @@ scripts/pg_local.sh start          # Homebrew postgresql@16 into ./pgdata on :54
 uv sync --extra dev
 uv run portal init                 # schema, roles, RLS policies, two-org scenario
 
-uv run pytest                                        # 85 tests
+uv run pytest                                        # 88 tests
 uv run python -m attacks.run_suite --both            # 30 attacks x 2 arms + comparison
 uv run python -m attacks.bench_revocation            # revocation bounds
 uv run python -m attacks.audit_reconstruction        # both orgs + tamper detection
@@ -285,4 +285,6 @@ than a crash.
 | `portal_app` needed SELECT for `RETURNING seq` | Granting it would have punched a hole in "no base-table privileges". Audit appends now go through a definer function, so the app holds **zero** privileges on every base table and the claim is absolute. |
 | Mutation harness reported a false coverage gap | A `%`-precedence bug built a search string that matched nothing; the unmutated run passed and read as "attack suite has a hole". The harness now fails hard when a mutation does not apply. |
 | `delegation_id` ambiguous in plpgsql | An OUT parameter shadowed the column of the same name, so the delegated read path errored while the human path worked. Qualified with the table alias. |
+| `GRANT` to a role created 10 lines later | `GRANT USAGE ON SCHEMA ext TO portal_owner` sat above the block that creates `portal_owner`. Every local run passed because the roles already existed from a previous run; it failed on the first genuinely fresh cluster with `role "portal_owner" does not exist`. "Works on my machine" was literally true and useless. Now guarded two ways: a test that drops the roles and re-applies the schema, and a structural test that fails if any `GRANT` precedes the roles it names. |
+| `pg_local.sh` succeeded while starting nothing | When port 5435 was already held by another cluster, `pg_ctl` failed but the script fell through to a `psql` that connected to the *foreign* cluster and printed "postgres ready". That is what hid the bug above from a from-scratch clone check. It now fails loudly rather than testing the wrong database. |
 | Seeding as `portal_owner` was refused | `FORCE ROW LEVEL SECURITY` binds the owner too, and the only policy is for SELECT. Not a bug to route around — it proved the policy has no owner-shaped hole, so seeding is explicitly an administrative operation outside the portal. |

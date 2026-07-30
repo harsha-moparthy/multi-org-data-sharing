@@ -29,8 +29,20 @@ start() {
   init
   if "$PGBIN/pg_ctl" -D "$PGDATA" status >/dev/null 2>&1; then
     echo "already running"
-  else
-    "$PGBIN/pg_ctl" -D "$PGDATA" -l "$LOG" -o "-p $PORT -c listen_addresses=127.0.0.1" start
+  elif ! "$PGBIN/pg_ctl" -D "$PGDATA" -l "$LOG" \
+        -o "-p $PORT -c listen_addresses=127.0.0.1" start; then
+    # Fail loudly rather than falling through to a psql that happens to connect.
+    # If port $PORT is held by a DIFFERENT cluster, the commands below would
+    # silently target it — which once hid a schema bug that only appears on a
+    # fresh cluster, because every local run reused an already-initialized one.
+    echo "" >&2
+    echo "ERROR: could not start the cluster in $PGDATA." >&2
+    echo "Port $PORT may be held by another postgres. Check with:" >&2
+    echo "  lsof -nP -iTCP:$PORT -sTCP:LISTEN" >&2
+    echo "Refusing to continue: a psql that connects to a foreign cluster on" >&2
+    echo "this port would look like success and test the wrong database." >&2
+    [ -f "$LOG" ] && { echo "--- last 15 lines of $LOG ---" >&2; tail -n 15 "$LOG" >&2; }
+    exit 1
   fi
   "$PGBIN/psql" -h 127.0.0.1 -p "$PORT" -U "$DBUSER" -d postgres -tc \
     "SELECT 1 FROM pg_database WHERE datname='$DBNAME'" | grep -q 1 || \

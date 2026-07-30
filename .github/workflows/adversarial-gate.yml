@@ -55,7 +55,11 @@ jobs:
       - name: Lint
         run: uv run ruff check src attacks tests
 
-      - name: Schema and seeded scenario
+      # This is the first thing that touches the database, and deliberately so:
+      # the service container is a genuinely fresh cluster, which is the only
+      # place a "GRANT before CREATE ROLE" ordering bug shows up. A local run
+      # reuses an initialized cluster and cannot catch it.
+      - name: Schema applies to a fresh cluster
         run: uv run portal init
 
       - name: Tests

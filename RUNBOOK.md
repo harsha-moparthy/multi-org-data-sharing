@@ -43,7 +43,7 @@ Health check:
 ```bash
 uv run portal grant list          # every grant, with a live/dead column
 uv run portal audit verify        # chain intact over N events
-uv run pytest -q                  # 85 tests, ~15 s
+uv run pytest -q                  # 88 tests, ~15 s
 ```
 
 ### Environment variables
@@ -230,7 +230,7 @@ matches what the partner is doing.
 governed share and one that merely was governed once:
 
 ```bash
-uv run pytest                                  # 85 tests
+uv run pytest                                  # 88 tests
 uv run python -m attacks.run_suite --both      # 30 attacks; RLS arm must be 0 bypasses
 uv run python -m attacks.bench_revocation      # revocation bounds still hold
 scripts/mutation_check.sh                      # the suite can still detect a break

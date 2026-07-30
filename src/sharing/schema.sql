@@ -27,12 +27,6 @@
 DROP EXTENSION IF EXISTS pgcrypto CASCADE;
 CREATE SCHEMA IF NOT EXISTS ext;
 CREATE EXTENSION pgcrypto WITH SCHEMA ext;
--- USAGE on `ext` is required for the definer functions to resolve `hmac` at all;
--- without it the audit trigger fails with "function hmac(...) does not exist"
--- even though the search_path names the schema. EXECUTE on the functions is
--- public by default, and that is fine: hmac is only dangerous with the key, and
--- the key table is what portal_app cannot read.
-GRANT USAGE ON SCHEMA ext TO portal_owner, portal_app;
 
 -- ---------------------------------------------------------------------------
 -- Roles
@@ -40,6 +34,12 @@ GRANT USAGE ON SCHEMA ext TO portal_owner, portal_app;
 -- portal_owner owns the data and the policies. portal_app is what the service
 -- connects as. The split is the point: it converts "we remembered to filter"
 -- into "the database will not serve it".
+--
+-- These MUST be created before anything is granted to them. An earlier version
+-- granted USAGE on `ext` above this block; it worked on every cluster where a
+-- previous run had already created the roles, and failed only on a genuinely
+-- fresh one with `role "portal_owner" does not exist`. Keep grants after the
+-- roles they name.
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='portal_owner') THEN
     CREATE ROLE portal_owner NOSUPERUSER NOBYPASSRLS NOLOGIN;
@@ -48,6 +48,13 @@ DO $$ BEGIN
     CREATE ROLE portal_app NOSUPERUSER NOBYPASSRLS LOGIN;
   END IF;
 END $$;
+
+-- USAGE on `ext` is required for the definer functions to resolve `hmac` at all;
+-- without it the audit trigger fails with "function hmac(...) does not exist"
+-- even though the search_path names the schema. EXECUTE on the functions is
+-- public by default, and that is fine: hmac is only dangerous with the key, and
+-- the key table is what portal_app cannot read.
+GRANT USAGE ON SCHEMA ext TO portal_owner, portal_app;
 
 DROP SCHEMA IF EXISTS portal CASCADE;
 CREATE SCHEMA portal AUTHORIZATION portal_owner;
